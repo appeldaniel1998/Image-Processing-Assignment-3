@@ -19,17 +19,7 @@ def myID() -> np.int:
 # ------------------------ Lucas Kanade optical flow ------------------------
 # ---------------------------------------------------------------------------
 
-
-def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10,
-                win_size=5) -> (np.ndarray, np.ndarray):
-    """
-    Given two images, returns the Translation from im1 to im2
-    :param im1: Image 1
-    :param im2: Image 2
-    :param step_size: The image sample size
-    :param win_size: The optical flow window size (odd number)
-    :return: Original points [[x,y]...], [[dU,dV]...] for each points
-    """
+def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):
     I_t = im1 - im2
     xDerivative = cv2.filter2D(im2 / 255, -1, np.array([-1, 0, 1]), borderType=cv2.BORDER_REPLICATE)
     yDerivative = cv2.filter2D(im2 / 255, -1, np.array([[-1], [0], [1]]), borderType=cv2.BORDER_REPLICATE)
@@ -68,7 +58,20 @@ def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10,
             except Exception:
                 v_x[x][y] = 0
                 v_y[x][y] = 0
+    return v_x, v_y
 
+
+def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (np.ndarray, np.ndarray):
+    """
+    Given two images, returns the Translation from im1 to im2
+    :param im1: Image 1
+    :param im2: Image 2
+    :param step_size: The image sample size
+    :param win_size: The optical flow window size (odd number)
+    :return: Original points [[x,y]...], [[dU,dV]...] for each points
+    """
+
+    v_x, v_y = opticalFlowMatrix(im1, im2, step_size, win_size)
     retLstOriginal = []
     retLstMoved = []
     for x in range(v_x.shape[0]):
@@ -80,8 +83,7 @@ def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10,
     return np.array(retLstOriginal), np.array(retLstMoved)
 
 
-def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int,
-                     stepSize: int, winSize: int) -> np.ndarray:
+def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, winSize: int) -> np.ndarray:
     """
     :param img1: First image
     :param img2: Second image
@@ -91,7 +93,21 @@ def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int,
     :return: A 3d array, with a shape of (m, n, 2),
     where the first channel holds U, and the second V.
     """
-    pass
+
+    reducedImg1 = img1.copy()
+    reducedImg2 = img2.copy()
+
+    for i in range(k):
+        reducedImg1 = cv2.pyrDown(reducedImg1)
+        reducedImg2 = cv2.pyrDown(reducedImg2)
+
+    u, v = opticalFlowMatrix(reducedImg1, reducedImg2, stepSize, winSize)
+
+    newUV = np.array((u.shape[0], u.shape[1], 2))
+    for i in range(u.shape[0]):
+        for j in range(u.shape[1]):
+            # newUV[i][j][0] =
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -151,15 +167,74 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
 # --------------------- Gaussian and Laplacian Pyramids ---------------------
 # ---------------------------------------------------------------------------
 
+def getGaussKernel(kSize: int, sigma: float = -1) -> np.ndarray:  # Completed
+    k = cv2.getGaussianKernel(kSize, sigma)  # Getting 1D gaussian kernel
+    k /= k[0, 0]  # Restoring original form before normalization due to the original form containing 1 as the first element
+    kernel = k @ k.T  # Getting the dot product of the gaussian kernel with itself transposed
+    kernel /= kernel.sum()  # Divide by sum to normalize and sum to 1
+    return kernel
 
-def gaussianPyr(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:
+
+def gaussianReduce(img: np.ndarray) -> np.ndarray:  # Completed
+    gaussKer = getGaussKernel(5, 1.2)
+    blurredImg = cv2.filter2D(img, -1, gaussKer, borderType=cv2.BORDER_REPLICATE)
+    imgAsList = []
+    for i in range(0, blurredImg.shape[0], 2):
+        row = []
+        for j in range(0, blurredImg.shape[1], 2):
+            row.append(blurredImg[i][j])
+        imgAsList.append(row)
+    ret = np.array(imgAsList)
+    return ret
+
+
+def gaussianExpand(img: np.ndarray) -> np.ndarray:
+    paddedImg = []
+
+    # Pad image with 0-es
+    for i in range(img.shape[0]):
+        row = []
+        for j in range(img.shape[1]):
+            row.append(img[i][j])
+            row.append(0)
+        row = row[:-1]
+        paddedImg.append(row)
+        paddedImg.append([0]*img.shape[1])
+    paddedImg = np.array(paddedImg)
+
+    # Pseudo-convolve with 121
+    expandedImg = []
+    for i in range(0, paddedImg.shape[0], 2):
+        row = [paddedImg[i][0]]
+        for j in range(1, paddedImg.shape[1] - 1):
+            newVal = 0.5 * (paddedImg[i][j - 1] + (2 * paddedImg[i][j]) + paddedImg[i][j + 1])
+            row.append(newVal)
+        row.append(paddedImg[i][-1])
+        expandedImg.append(row)
+
+    # for i in range(0, paddedImg.shape[1]):
+    #     row = [paddedImg[0][i]]
+    #     for j in range(1, paddedImg.shape[0] - 1):
+    #         newVal = 0.5 * (paddedImg[j][i - 1] + (2 * paddedImg[j][i]) + paddedImg[j][i + 1])
+    #         row.append(newVal)
+    #     row.append(paddedImg[-1][i])
+    #     expandedImg.append(row)
+    expandedImg = np.array(expandedImg)
+
+    return expandedImg
+
+
+def gaussianPyr(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:  # Completed
     """
     Creates a Gaussian Pyramid
     :param img: Original image
     :param levels: Pyramid depth
     :return: Gaussian pyramid (list of images)
     """
-    pass
+    ret = [img]
+    for i in range(1, levels):
+        ret.append(gaussianReduce(ret[-1]))
+    return ret
 
 
 def laplaceianReduce(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:
@@ -169,7 +244,13 @@ def laplaceianReduce(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:
     :param levels: Pyramid depth
     :return: Laplacian Pyramid (list of images)
     """
-    pass
+    gaussianPyramid = gaussianPyr(img, levels)
+    ret = [gaussianPyramid[-1]]
+    for i in range(2, levels + 1):
+        laplacianImage = gaussianPyramid[-i] - gaussianExpand(gaussianPyramid[-i + 1])
+        ret.append(laplacianImage)
+    ret.reverse()
+    return ret
 
 
 def laplaceianExpand(lap_pyr: List[np.ndarray]) -> np.ndarray:
@@ -178,7 +259,10 @@ def laplaceianExpand(lap_pyr: List[np.ndarray]) -> np.ndarray:
     :param lap_pyr: Laplacian Pyramid
     :return: Original image
     """
-    pass
+    img = lap_pyr[-1]
+    for i in range(2, len(lap_pyr) + 1):
+        img = gaussianExpand(img) + lap_pyr[-i]
+    return img
 
 
 def pyrBlend(img_1: np.ndarray, img_2: np.ndarray,
