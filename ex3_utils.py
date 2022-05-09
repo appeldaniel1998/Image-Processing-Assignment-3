@@ -19,7 +19,7 @@ def myID() -> np.int:
 # ------------------------ Lucas Kanade optical flow ------------------------
 # ---------------------------------------------------------------------------
 
-def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):
+def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):  # Completed
     I_t = im1 - im2
     xDerivative = cv2.filter2D(im2 / 255, -1, np.array([-1, 0, 1]), borderType=cv2.BORDER_REPLICATE)
     yDerivative = cv2.filter2D(im2 / 255, -1, np.array([[-1], [0], [1]]), borderType=cv2.BORDER_REPLICATE)
@@ -40,8 +40,8 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
     v_x = np.zeros(im2.shape)
     v_y = np.zeros(im2.shape)
 
-    for x in range(im2.shape[0]):
-        for y in range(im2.shape[1]):
+    for x in range(0, im2.shape[0], step_size):
+        for y in range(0, im2.shape[1], step_size):
             try:
                 mat1 = np.array([[ixSquared[x][y], sigmaIxiy[x][y]],
                                  [sigmaIxiy[x][y], iySquared[x][y]]])
@@ -61,7 +61,7 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
     return v_x, v_y
 
 
-def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (np.ndarray, np.ndarray):
+def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (np.ndarray, np.ndarray):  # Completed
     """
     Given two images, returns the Translation from im1 to im2
     :param im1: Image 1
@@ -83,7 +83,7 @@ def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (
     return np.array(retLstOriginal), np.array(retLstMoved)
 
 
-def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, winSize: int) -> np.ndarray:
+def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, winSize: int) -> np.ndarray:  # TODO
     """
     :param img1: First image
     :param img2: Second image
@@ -107,7 +107,7 @@ def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, 
     for i in range(u.shape[0]):
         for j in range(u.shape[1]):
             # newUV[i][j][0] =
-            pass
+            pass  # TODO
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ def gaussianReduce(img: np.ndarray) -> np.ndarray:  # Completed
 
 
 def gaussianExpand(img: np.ndarray) -> np.ndarray:
-    paddedImg = []
+    paddedImg = np.zeros((img.shape[0] * 2 - 1, img.shape[1] * 2 - 1))
 
     # Pad image with 0-es
     for i in range(img.shape[0]):
@@ -198,19 +198,17 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:
             row.append(img[i][j])
             row.append(0)
         row = row[:-1]
-        paddedImg.append(row)
-        paddedImg.append([0]*img.shape[1])
-    paddedImg = np.array(paddedImg)
+        paddedImg[i * 2] = row
 
-    # Pseudo-convolve with 121
-    expandedImg = []
+    # Pseudo-convolve with 1,2,1
+    expandedImg = np.zeros((img.shape[0] * 2 - 1, img.shape[1] * 2 - 1))
     for i in range(0, paddedImg.shape[0], 2):
         row = [paddedImg[i][0]]
         for j in range(1, paddedImg.shape[1] - 1):
             newVal = 0.5 * (paddedImg[i][j - 1] + (2 * paddedImg[i][j]) + paddedImg[i][j + 1])
             row.append(newVal)
         row.append(paddedImg[i][-1])
-        expandedImg.append(row)
+        expandedImg[i] = row
 
     # for i in range(0, paddedImg.shape[1]):
     #     row = [paddedImg[0][i]]
