@@ -189,7 +189,7 @@ def gaussianReduce(img: np.ndarray) -> np.ndarray:  # Completed
 
 
 def gaussianExpand(img: np.ndarray) -> np.ndarray:
-    paddedImg = np.zeros((img.shape[0] * 2 - 1, img.shape[1] * 2 - 1))
+    paddedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2))
 
     # Pad image with 0-es
     for i in range(img.shape[0]):
@@ -197,11 +197,11 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:
         for j in range(img.shape[1]):
             row.append(img[i][j])
             row.append(0)
-        row = row[:-1]
+        # row = row[:-1]
         paddedImg[i * 2] = row
 
     # Pseudo-convolve with 1,2,1
-    expandedImg = np.zeros((img.shape[0] * 2 - 1, img.shape[1] * 2 - 1))
+    expandedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2))
     for i in range(0, paddedImg.shape[0], 2):
         row = [paddedImg[i][0]]
         for j in range(1, paddedImg.shape[1] - 1):
@@ -210,15 +210,21 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:
         row.append(paddedImg[i][-1])
         expandedImg[i] = row
 
-    # for i in range(0, paddedImg.shape[1]):
-    #     row = [paddedImg[0][i]]
-    #     for j in range(1, paddedImg.shape[0] - 1):
-    #         newVal = 0.5 * (paddedImg[j][i - 1] + (2 * paddedImg[j][i]) + paddedImg[j][i + 1])
-    #         row.append(newVal)
-    #     row.append(paddedImg[-1][i])
-    #     expandedImg.append(row)
     expandedImg = np.array(expandedImg)
+    paddedImg = expandedImg.copy()
 
+    expandedImg = np.zeros((img.shape[1] * 2, img.shape[0] * 2))
+    for i in range(paddedImg.shape[1]):
+        col = [paddedImg[0][i]]
+        for j in range(1, paddedImg.shape[0] - 1):
+            newVal = 0.5 * (paddedImg[j - 1][i] + (2 * paddedImg[j][i]) + paddedImg[j + 1][i])
+            col.append(newVal)
+        col.append(paddedImg[-1][i])
+        expandedImg[i] = col
+    expandedImg = expandedImg.transpose()
+    expandedImg = np.array(expandedImg)
+    expandedImg[-1] = expandedImg[-2]
+    expandedImg[:, -1] = expandedImg[:, -2]
     return expandedImg
 
 
