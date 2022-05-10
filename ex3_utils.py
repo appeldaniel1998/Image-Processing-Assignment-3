@@ -25,8 +25,8 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
     yDerivative = cv2.filter2D(im2 / 255, -1, np.array([[-1], [0], [1]]), borderType=cv2.BORDER_REPLICATE)
     maskOnes = np.ones((win_size, win_size))
 
-    ixSquared = cv2.filter2D(xDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
-    iySquared = cv2.filter2D(yDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
+    ixSquared = np.square(cv2.filter2D(xDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE))
+    iySquared = np.square(cv2.filter2D(yDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE))
 
     ixiy = xDerivative * yDerivative
     sigmaIxiy = cv2.filter2D(ixiy, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
@@ -188,7 +188,7 @@ def gaussianReduce(img: np.ndarray) -> np.ndarray:  # Completed
     return ret
 
 
-def gaussianExpand(img: np.ndarray) -> np.ndarray:
+def gaussianExpand(img: np.ndarray) -> np.ndarray:  # Completed
     paddedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2))
 
     # Pad image with 0-es
