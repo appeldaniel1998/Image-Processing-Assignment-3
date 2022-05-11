@@ -201,6 +201,7 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:  # Completed
         paddedImg[i * 2] = row
 
     # Pseudo-convolve with 1,2,1
+    # Over rows
     expandedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2))
     for i in range(0, paddedImg.shape[0], 2):
         row = [paddedImg[i][0]]
@@ -213,6 +214,7 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:  # Completed
     expandedImg = np.array(expandedImg)
     paddedImg = expandedImg.copy()
 
+    # Over columns
     expandedImg = np.zeros((img.shape[1] * 2, img.shape[0] * 2))
     for i in range(paddedImg.shape[1]):
         col = [paddedImg[0][i]]
@@ -222,6 +224,7 @@ def gaussianExpand(img: np.ndarray) -> np.ndarray:  # Completed
         col.append(paddedImg[-1][i])
         expandedImg[i] = col
     expandedImg = expandedImg.transpose()
+
     expandedImg = np.array(expandedImg)
     expandedImg[-1] = expandedImg[-2]
     expandedImg[:, -1] = expandedImg[:, -2]
