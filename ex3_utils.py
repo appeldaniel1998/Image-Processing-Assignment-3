@@ -176,15 +176,28 @@ def getGaussKernel(kSize: int, sigma: float = -1) -> np.ndarray:  # Completed
 
 
 def gaussianReduce(img: np.ndarray) -> np.ndarray:  # Completed
-    gaussKer = getGaussKernel(5, 1.2)
-    blurredImg = cv2.filter2D(img, -1, gaussKer, borderType=cv2.BORDER_REPLICATE)
     imgAsList = []
-    for i in range(0, blurredImg.shape[0], 2):
-        row = []
-        for j in range(0, blurredImg.shape[1], 2):
-            row.append(blurredImg[i][j])
-        imgAsList.append(row)
+    if img.ndim == 3:
+        for dim in range(3):
+            gaussKer = getGaussKernel(5, 1.2)
+            blurredImg = cv2.filter2D(img[:, :, dim], -1, gaussKer, borderType=cv2.BORDER_REPLICATE)
+            imgAsList = []
+            for i in range(0, blurredImg.shape[0], 2):
+                row = []
+                for j in range(0, blurredImg.shape[1], 2):
+                    row.append(blurredImg[i][j])
+                imgAsList.append(row)
+    else:
+        gaussKer = getGaussKernel(5, 1.2)
+        blurredImg = cv2.filter2D(img, -1, gaussKer, borderType=cv2.BORDER_REPLICATE)
+        imgAsList = []
+        for i in range(0, blurredImg.shape[0], 2):
+            row = []
+            for j in range(0, blurredImg.shape[1], 2):
+                row.append(blurredImg[i][j])
+            imgAsList.append(row)
     ret = np.array(imgAsList)
+
     return ret
 
 
@@ -282,4 +295,15 @@ def pyrBlend(img_1: np.ndarray, img_2: np.ndarray,
     :param levels: Pyramid depth
     :return: (Naive blend, Blended Image)
     """
-    pass
+    laplacianImg1 = laplaceianReduce(img_1, levels)
+    laplacianImg2 = laplaceianReduce(img_2, levels)
+    maskGaussianPyr = gaussianPyr(mask, levels)
+
+    ls = []
+    for la, lb, maskPyrInd in zip(laplacianImg1, laplacianImg2, maskGaussianPyr):
+        ls.append(lb * maskPyrInd + la * (1 - maskPyrInd))
+
+    ls = ls.reverse()
+    expanded = laplaceianExpand(ls)
+
+    return np.zeros((1, 1)), expanded
