@@ -19,14 +19,19 @@ def myID() -> np.int:
 # ------------------------ Lucas Kanade optical flow ------------------------
 # ---------------------------------------------------------------------------
 
+def cutArr(arr: np.ndarray, x: int, y: int, win_size: int) -> np.ndarray:
+    return np.sum(arr[x - win_size // 2: x + win_size // 2, y - win_size // 2: y + win_size // 2])
+
+
 def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):  # Completed
     I_t = im1 - im2
-    xDerivative = cv2.filter2D(im2 / 255, -1, np.array([-1, 0, 1]), borderType=cv2.BORDER_REPLICATE)
-    yDerivative = cv2.filter2D(im2 / 255, -1, np.array([[-1], [0], [1]]), borderType=cv2.BORDER_REPLICATE)
+    ker = np.array([[-1, 0, 1]])
+    xDerivative = cv2.filter2D(im2, -1, ker, borderType=cv2.BORDER_REPLICATE)
+    yDerivative = cv2.filter2D(im2, -1, ker.T, borderType=cv2.BORDER_REPLICATE)
     maskOnes = np.ones((win_size, win_size))
 
-    ixSquared = np.square(cv2.filter2D(xDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE))
-    iySquared = np.square(cv2.filter2D(yDerivative, -1, maskOnes, borderType=cv2.BORDER_REPLICATE))
+    ixSquared = cv2.filter2D(xDerivative ** 2, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
+    iySquared = cv2.filter2D(yDerivative ** 2, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
 
     ixiy = xDerivative * yDerivative
     sigmaIxiy = cv2.filter2D(ixiy, -1, maskOnes, borderType=cv2.BORDER_REPLICATE)
@@ -45,7 +50,11 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
             try:
                 mat1 = np.array([[ixSquared[x][y], sigmaIxiy[x][y]],
                                  [sigmaIxiy[x][y], iySquared[x][y]]])
-                lambda1, lambda2 = np.linalg.eig(mat1)[0][0], np.linalg.eig(mat1)[0][1]
+
+                eig = np.linalg.eig(mat1)
+                lambda1 = max(eig[0][0], eig[0][1])
+                lambda2 = min(eig[0][0], eig[0][1])
+
                 if lambda1 >= lambda2 > 1 and lambda1 / lambda2 < 100:
                     inverseMat1 = np.linalg.inv(mat1)
                     mat2 = np.array([[-sigmaIxit[x][y]], [-sigmaIyit[x][y]]])
@@ -55,7 +64,7 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
                 else:
                     v_x[x][y] = 0
                     v_y[x][y] = 0
-            except Exception:
+            except Exception:  # If there is no inverse matrix
                 v_x[x][y] = 0
                 v_y[x][y] = 0
     return v_x, v_y
@@ -78,7 +87,7 @@ def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (
         for y in range(v_x.shape[1]):
             if v_x[x][y] != 0 or v_y[x][y] != 0:
                 retLstOriginal.append([y, x])
-                retLstMoved.append([np.round(v_x[x][y]), np.round(v_y[x][y])])
+                retLstMoved.append([v_x[x][y], v_y[x][y]])
 
     return np.array(retLstOriginal), np.array(retLstMoved)
 

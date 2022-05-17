@@ -151,7 +151,7 @@ def main():
     print("ID:", myID())
 
     img_path = 'input/boxMan.jpg'
-    # lkDemo(img_path)
+    lkDemo(img_path)
     # hierarchicalkDemo(img_path)
     # compareLK(img_path)
     #
@@ -159,7 +159,7 @@ def main():
     #
     # pyrGaussianDemo('input/pyr_bit.jpg')
     # pyrLaplacianDemo('input/pyr_bit.jpg')
-    blendDemo()
+    # blendDemo()
 
 
 if __name__ == '__main__':
