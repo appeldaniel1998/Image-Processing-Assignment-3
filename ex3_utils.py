@@ -207,7 +207,10 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
     :return: warp image 2 according to T and display both image1
     and the wrapped version of the image2 in the same figure.
     """
-    pass
+
+    inverseT = np.linalg.inv(T)
+    originalImgFromImg2 = cv2.warpPerspective(im2, inverseT, im2.shape[::-1])
+
 
 
 # ---------------------------------------------------------------------------
