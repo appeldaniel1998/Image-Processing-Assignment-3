@@ -95,32 +95,39 @@ def displayOpticalFlow(img: np.ndarray, pts: np.ndarray, uvs: np.ndarray):
 # ---------------------------------------------------------------------------
 
 
-def imageWarpingDemo(img_path):
+def     imageWarpingDemo(img_path):
     """
     ADD TEST
     :param img_path: Image input
     :return:
     """
+
     print("Image Translation Demo")
     img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
-    # img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
     img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
     t = np.array([[1, 0, -2],
                   [0, 1, -1],
                   [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
 
-    st = time.time()
-    ret = findTranslationLK(img1.astype(float), img2.astype(float))
-    et = time.time()
-
-    print("Time: {:.4f}".format(et - st))
-    print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
-    print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
-    print("The final U and V (accordingly) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
+    # st = time.time()
+    # ret = findTranslationLK(img1.astype(float), img2.astype(float))
+    # et = time.time()
+    #
+    # print("Time: {:.4f}".format(et - st))
+    # print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
+    # print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
+    # print("The final U and V (accordingly) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
 
 
     print("Image Warping Demo")
+    t = np.array([[1, 6, -2],
+                  [3, 4, -1],
+                  [0, 0, 1]], dtype=float)
+    st = time.time()
+    ret = warpImages(img1.astype(float), img2.astype(float), t)
+    et = time.time()
+
 
 
 # ---------------------------------------------------------------------------
