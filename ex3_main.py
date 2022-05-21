@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 from ex3_utils import *
 import time
 import cv2
+from sklearn.metrics import mean_squared_error
 
 
 # ---------------------------------------------------------------------------
@@ -14,6 +16,7 @@ def lkDemo(img_path):
     print("LK Demo")
 
     img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
+    # img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
     img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
     t = np.array([[1, 0, -.2],
                   [0, 1, -.1],
@@ -31,15 +34,41 @@ def lkDemo(img_path):
     displayOpticalFlow(img_2, pts, uv)
 
 
-def hierarchicalkDemo(img_path):
+def hierarchicalkDemo(img_path1, img_path2):
     """
     ADD TEST
-    :param img_path: Image input
+    :param img_path1: Image 1 input
+    :param img_path2: Image 2 input
     :return:
     """
     print("Hierarchical LK Demo")
 
-    pass
+    img_1 = cv2.cvtColor(cv2.imread(img_path1), cv2.COLOR_BGR2GRAY)
+    img_2 = cv2.cvtColor(cv2.imread(img_path2), cv2.COLOR_BGR2GRAY)
+
+    img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
+    img_2 = cv2.resize(img_2, (0, 0), fx=.5, fy=0.5)
+
+    # img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
+
+    st = time.time()
+    result = opticalFlowPyrLK(img_1.astype(float), img_2.astype(float), k=4)
+    et = time.time()
+
+    retLstOriginal = []
+    retLstMoved = []
+    for x in range(result.shape[0]):
+        for y in range(result.shape[1]):
+            if result[x][y][0] != 0 or result[x][y][1] != 0:
+                retLstOriginal.append([y, x])
+                retLstMoved.append([result[x][y][0], result[x][y][1]])
+
+    retLstOriginal = np.array(retLstOriginal)
+    retLstMoved = np.array(retLstMoved)
+
+    print("Time: {:.4f}".format(et - st))
+
+    displayOpticalFlow(img_2, retLstOriginal, retLstMoved)
 
 
 def compareLK(img_path):
@@ -72,9 +101,26 @@ def imageWarpingDemo(img_path):
     :param img_path: Image input
     :return:
     """
-    print("Image Warping Demo")
+    print("Image Translation Demo")
+    img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
+    # img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
+    img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
+    t = np.array([[1, 0, -2],
+                  [0, 1, -1],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
 
-    pass
+    st = time.time()
+    ret = findTranslationLK(img1.astype(float), img2.astype(float))
+    et = time.time()
+
+    print("Time: {:.4f}".format(et - st))
+    print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
+    print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
+    print("The final U and V (accordingly) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
+
+
+    print("Image Warping Demo")
 
 
 # ---------------------------------------------------------------------------
@@ -151,11 +197,12 @@ def main():
     print("ID:", myID())
 
     img_path = 'input/boxMan.jpg'
-    lkDemo(img_path)
-    # hierarchicalkDemo(img_path)
+    # lkDemo(img_path)
+    # hierarchicalkDemo("input/pen1.jpeg", "input/pen2.jpeg")
+    # hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
     # compareLK(img_path)
     #
-    # imageWarpingDemo(img_path)
+    imageWarpingDemo(img_path)
     #
     # pyrGaussianDemo('input/pyr_bit.jpg')
     # pyrLaplacianDemo('input/pyr_bit.jpg')

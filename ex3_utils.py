@@ -1,6 +1,6 @@
 import sys
 from typing import List
-
+from sklearn.metrics import mean_squared_error
 import numpy as np
 import cv2
 from numpy.linalg import LinAlgError
@@ -19,12 +19,8 @@ def myID() -> np.int:
 # ------------------------ Lucas Kanade optical flow ------------------------
 # ---------------------------------------------------------------------------
 
-def cutArr(arr: np.ndarray, x: int, y: int, win_size: int) -> np.ndarray:
-    return np.sum(arr[x - win_size // 2: x + win_size // 2, y - win_size // 2: y + win_size // 2])
-
-
-def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):  # Completed
-    I_t = im1 - im2
+def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size: int) -> (np.ndarray, np.ndarray):
+    I_t = im2 - im1
     ker = np.array([[-1, 0, 1]])
     xDerivative = cv2.filter2D(im2, -1, ker, borderType=cv2.BORDER_REPLICATE)
     yDerivative = cv2.filter2D(im2, -1, ker.T, borderType=cv2.BORDER_REPLICATE)
@@ -70,7 +66,7 @@ def opticalFlowMatrix(im1: np.ndarray, im2: np.ndarray, step_size: int, win_size
     return v_x, v_y
 
 
-def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (np.ndarray, np.ndarray):  # Completed
+def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (np.ndarray, np.ndarray):
     """
     Given two images, returns the Translation from im1 to im2
     :param im1: Image 1
@@ -92,7 +88,7 @@ def opticalFlow(im1: np.ndarray, im2: np.ndarray, step_size=10, win_size=5) -> (
     return np.array(retLstOriginal), np.array(retLstMoved)
 
 
-def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, winSize: int) -> np.ndarray:  # TODO
+def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int = 10, winSize: int = 5) -> np.ndarray:
     """
     :param img1: First image
     :param img2: Second image
@@ -103,20 +99,30 @@ def opticalFlowPyrLK(img1: np.ndarray, img2: np.ndarray, k: int, stepSize: int, 
     where the first channel holds U, and the second V.
     """
 
-    reducedImg1 = img1.copy()
-    reducedImg2 = img2.copy()
+    reducedImg1 = gaussianPyr(img1, k)
+    reducedImg2 = gaussianPyr(img2, k)
 
-    for i in range(k):
-        reducedImg1 = cv2.pyrDown(reducedImg1)
-        reducedImg2 = cv2.pyrDown(reducedImg2)
+    newUV = np.zeros((img1.shape[0], img1.shape[1], 2))
 
-    u, v = opticalFlowMatrix(reducedImg1, reducedImg2, stepSize, winSize)
+    for ind in range(k - 1, -1, -1):
+        dx, dy = opticalFlowMatrix(reducedImg1[ind], reducedImg2[ind], stepSize, winSize)
+        for i in range(dx.shape[0]):
+            for j in range(dx.shape[1]):
+                newUV[i][j][0] = dx[i][j] + (2 * newUV[i][j][0])
+                newUV[i][j][1] = dy[i][j] + (2 * newUV[i][j][1])
 
-    newUV = np.array((u.shape[0], u.shape[1], 2))
-    for i in range(u.shape[0]):
-        for j in range(u.shape[1]):
-            # newUV[i][j][0] =
-            pass  # TODO
+        expandedImg = np.zeros((newUV.shape[0] * 2, newUV.shape[1] * 2, newUV.shape[2]))
+        # Pad image with 0-es
+        for k in range(newUV.shape[2]):
+            for i in range(newUV.shape[0]):
+                for j in range(newUV.shape[1]):
+                    expandedImg[i * 2][j * 2][k] = newUV[i][j][k]
+
+        newUV = expandedImg
+
+        # newUV = gaussianExpandWithoutPseudoConvolve(newUV)
+    newUV = newUV[:img2.shape[0], :img2.shape[1], :]
+    return newUV
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +136,22 @@ def findTranslationLK(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     :param im2: image 1 after Translation.
     :return: Translation matrix by LK.
     """
-    pass
+
+    minMSE = sys.maxsize
+    minUV = []
+    points, diff = opticalFlow(im1, im2, 10, 5)
+    for pointId in range(len(points)):
+        t = np.array([[1, 0, diff[pointId][0]],
+                      [0, 1, diff[pointId][1]],
+                      [0, 0, 1]], dtype=float)
+        tempImg2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
+        currMSE = mean_squared_error(im2, tempImg2)
+        if currMSE < minMSE:
+            minMSE = currMSE
+            minUV = diff[pointId]
+    return np.array([[1, 0, minUV[0]],
+                     [0, 1, minUV[1]],
+                     [0, 0, 1]], dtype=float)
 
 
 def findRigidLK(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
@@ -139,7 +160,24 @@ def findRigidLK(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     :param im2: image 1 after Rigid.
     :return: Rigid matrix by LK.
     """
-    pass
+
+    minMSE = sys.maxsize
+    minUVT = []
+    points, diff = opticalFlow(im1, im2, 10, 5)
+    for theta in range(360):
+        for pointId in range(len(points)):
+            t = np.array([[np.cos(theta), -np.sin(theta), 0],
+                          [np.sin(theta), np.cos(theta), 0],
+                          [0, 0, 1]], dtype=float)
+            tempImg2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
+            currMSE = mean_squared_error(im2, tempImg2)
+            if currMSE < minMSE:
+                minMSE = currMSE
+                minUVT = diff[pointId][0], diff[pointId][1], theta
+
+    return np.array([[np.cos(minUVT[2]), -np.sin(minUVT[2]), minUVT[0]],
+                     [np.sin(minUVT[2]), np.cos(minUVT[2]), minUVT[1]],
+                     [0, 0, 1]], dtype=float)
 
 
 def findTranslationCorr(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
