@@ -105,10 +105,10 @@ def     imageWarpingDemo(img_path):
     print("Image Translation Demo")
     img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
     img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
-    t = np.array([[1, 0, -2],
-                  [0, 1, -1],
-                  [0, 0, 1]], dtype=float)
-    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    # t = np.array([[1, 0, -2],
+    #               [0, 1, -1],
+    #               [0, 0, 1]], dtype=float)
+    # img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
 
     # st = time.time()
     # ret = findTranslationLK(img1.astype(float), img2.astype(float))
@@ -121,9 +121,10 @@ def     imageWarpingDemo(img_path):
 
 
     print("Image Warping Demo")
-    t = np.array([[1, 6, -2],
-                  [3, 4, -1],
+    t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 2],
+                  [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 1],
                   [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
     st = time.time()
     ret = warpImages(img1.astype(float), img2.astype(float), t)
     et = time.time()
@@ -205,7 +206,6 @@ def main():
 
     img_path = 'input/boxMan.jpg'
     # lkDemo(img_path)
-    # hierarchicalkDemo("input/pen1.jpeg", "input/pen2.jpeg")
     # hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
     # compareLK(img_path)
     #

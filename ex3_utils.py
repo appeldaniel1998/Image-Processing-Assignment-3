@@ -207,37 +207,24 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
     :return: warp image 2 according to T and display both image1
     and the wrapped version of the image2 in the same figure.
     """
-    xlst, ylst = [], []
     newIm1 = np.zeros(im2.shape)
+    changeMat = np.zeros(im2.shape)
     inverseT = np.linalg.inv(T)
     for x in range(im2.shape[0]):
         for y in range(im2.shape[1]):
-            coordinates = np.matmul(inverseT, np.array([x, y, 1]).T)
-            xlst.append(coordinates[0])
-            ylst.append(coordinates[1])
-            # coordinates = np.round(coordinates)
-            # newIm1[int(coordinates[0])][int(coordinates[1])] = im2[x][y]
-    xlst = np.array(xlst)
-    ylst = np.array(ylst)
-
-    xlst = (xlst - min(xlst)) / (max(xlst) - min(xlst))
-    ylst = (ylst - min(ylst)) / (max(ylst) - min(ylst))
-
-    xlst *= 255
-    ylst *= 255
-
-    i = 0
-    for x in range(im2.shape[0]):
-        for y in range(im2.shape[1]):
-            newIm1[int(round(xlst[i]))][int(round(ylst[i]))] = im2[x][y]
-            i += 1
+            coordinates = np.matmul(inverseT, np.array([[x], [y], [1]]))
+            coordinates = np.round(coordinates)
+            try:
+                newIm1[int(coordinates[0][0])][int(coordinates[1][0])] = im2[x][y]
+                changeMat[int(coordinates[0][0])][int(coordinates[1][0])] = 1
+            except Exception:
+                pass
 
     f, ax = plt.subplots(1, 3)
     ax[0].imshow(im1)
     ax[1].imshow(newIm1)
     ax[2].imshow(im2)
     plt.show()
-
 
 
 # ---------------------------------------------------------------------------
