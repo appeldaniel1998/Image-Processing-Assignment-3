@@ -16,7 +16,6 @@ def lkDemo(img_path):
     print("LK Demo")
 
     img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
-    # img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
     img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
     t = np.array([[1, 0, -.2],
                   [0, 1, -.1],
@@ -33,24 +32,32 @@ def lkDemo(img_path):
 
     displayOpticalFlow(img_2, pts, uv)
 
+    # RGB
+    img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+    img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
+    img_2 = np.zeros(img_1.shape)
+    img_2[:, :, 0] = cv2.warpPerspective(img_1[:, :, 0], t, img_1[:, :, 0].shape[::-1])
+    img_2[:, :, 1] = cv2.warpPerspective(img_1[:, :, 1], t, img_1[:, :, 1].shape[::-1])
+    img_2[:, :, 2] = cv2.warpPerspective(img_1[:, :, 2], t, img_1[:, :, 2].shape[::-1])
 
-def hierarchicalkDemo(img_path1, img_path2):
+    st = time.time()
+    pts, uv = opticalFlow(img_1.astype(float), img_2.astype(float), step_size=20, win_size=5)
+    et = time.time()
+
+    print("Time: {:.4f}".format(et - st))
+    print(np.median(uv, 0))
+    print(np.mean(uv, 0))
+
+    displayOpticalFlow(img_2[:, :, 0], pts, uv)  # displaying only one channel
+
+
+def hierarchicalDemoHelper(img_1, img_2):
     """
-    ADD TEST
-    :param img_path1: Image 1 input
-    :param img_path2: Image 2 input
+    input of 2 images, running hierarchical LK on the images and converting the results into ones the output function can read.
+    :param img_1:
+    :param img_2:
     :return:
     """
-    print("Hierarchical LK Demo")
-
-    img_1 = cv2.cvtColor(cv2.imread(img_path1), cv2.COLOR_BGR2GRAY)
-    img_2 = cv2.cvtColor(cv2.imread(img_path2), cv2.COLOR_BGR2GRAY)
-
-    img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
-    img_2 = cv2.resize(img_2, (0, 0), fx=.5, fy=0.5)
-
-    # img_1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)  # todo: need to fix
-
     st = time.time()
     result = opticalFlowPyrLK(img_1.astype(float), img_2.astype(float), k=4)
     et = time.time()
@@ -67,8 +74,40 @@ def hierarchicalkDemo(img_path1, img_path2):
     retLstMoved = np.array(retLstMoved)
 
     print("Time: {:.4f}".format(et - st))
+    return retLstOriginal, retLstMoved
+
+
+def hierarchicalkDemo(img_path1, img_path2):
+    """
+    ADD TEST
+    :param img_path1: Image 1 input
+    :param img_path2: Image 2 input
+    :return:
+    """
+    print("Hierarchical LK Demo")
+    print("BW image")
+    img_1 = cv2.cvtColor(cv2.imread(img_path1), cv2.COLOR_BGR2GRAY)
+    img_2 = cv2.cvtColor(cv2.imread(img_path2), cv2.COLOR_BGR2GRAY)
+
+    img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
+    img_2 = cv2.resize(img_2, (0, 0), fx=.5, fy=0.5)
+
+    retLstOriginal, retLstMoved = hierarchicalDemoHelper(img_1, img_2)
 
     displayOpticalFlow(img_2, retLstOriginal, retLstMoved)
+
+    #############################################
+
+    print("RGB image")
+    img_1 = cv2.cvtColor(cv2.imread(img_path1), cv2.COLOR_BGR2RGB)
+    img_2 = cv2.cvtColor(cv2.imread(img_path2), cv2.COLOR_BGR2RGB)
+
+    img_1 = cv2.resize(img_1, (0, 0), fx=.5, fy=0.5)
+    img_2 = cv2.resize(img_2, (0, 0), fx=.5, fy=0.5)
+
+    retLstOriginal, retLstMoved = hierarchicalDemoHelper(img_1, img_2)
+
+    displayOpticalFlow(img_2[:, :, 0], retLstOriginal, retLstMoved)
 
 
 def compareLK(img_path):
@@ -79,8 +118,18 @@ def compareLK(img_path):
     :return:
     """
     print("Compare LK & Hierarchical LK")
+    t = np.array([[1, 0, -.2],
+                  [0, 1, -.1],
+                  [0, 0, 1]], dtype=float)
+    img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
+    img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
 
-    pass
+    pts, uv = opticalFlow(img1.astype(float), img2.astype(float), step_size=20, win_size=5)
+    displayOpticalFlow(img2, pts, uv)
+
+    retLstOriginal, retLstMoved = hierarchicalDemoHelper(img1, img2)
+    displayOpticalFlow(img2, retLstOriginal, retLstMoved)
 
 
 def displayOpticalFlow(img: np.ndarray, pts: np.ndarray, uvs: np.ndarray):
@@ -117,36 +166,36 @@ def imageWarpingDemo(img_path):
     :return:
     """
 
-    # # print("Image Translation Demo")
+    print("Image Translation Demo")
     img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
     img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
     t = np.array([[1, 0, -2],
                   [0, 1, -1],
                   [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
-    #
-    # st = time.time()
-    # ret = findTranslationLK(img1.astype(float), img2.astype(float))
-    # et = time.time()
-    # presentTranslation(st, et, img1, img2, ret)
 
-    # print("Rigid Transformation (Angles)")
+    st = time.time()
+    ret = findTranslationLK(img1.astype(float), img2.astype(float))
+    et = time.time()
+    presentTranslation(st, et, img1, img2, ret)
+
+    print("Rigid Transformation (Angles)")
     t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 0],
                   [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 0],
                   [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
-    # st = time.time()
-    # ret = findRigidLK(img1.astype(float), img2.astype(float))
-    # et = time.time()
-    # print("Time: {:.4f}".format(et - st))
-    # print("The angle used in the original transformation was 5.")
-    # print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
+    st = time.time()
+    ret = findRigidLK(img1.astype(float), img2.astype(float))
+    et = time.time()
+    print("Time: {:.4f}".format(et - st))
+    print("The angle used in the original transformation was 5.")
+    print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
 
-    # print("Translation: Correlation")
-    # st = time.time()
-    # ret = findTranslationCorr(img1.astype(float), img2.astype(float))
-    # et = time.time()
-    # presentTranslation(st, et, img1, img2, ret)
+    print("Translation: Correlation")
+    st = time.time()
+    ret = findTranslationCorr(img1.astype(float), img2.astype(float))
+    et = time.time()
+    presentTranslation(st, et, img1, img2, ret)
 
     print("Rigid: Correlation")
     st = time.time()
@@ -155,7 +204,6 @@ def imageWarpingDemo(img_path):
     print("Time: {:.4f}".format(et - st))
     print("The angle used in the original transformation was 5.")
     print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
-
 
     print("Image Warping Demo")
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
@@ -252,14 +300,14 @@ def main():
 
     img_path = 'input/boxMan.jpg'
     lkDemo(img_path)
-    # hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
-    # compareLK(img_path)
-    #
-    # imageWarpingDemo(img_path)
-    #
-    # pyrGaussianDemo('input/pyr_bit.jpg')
-    # pyrLaplacianDemo('input/pyr_bit.jpg')
-    # blendDemo()
+    hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
+    compareLK(img_path)
+
+    imageWarpingDemo(img_path)
+
+    pyrGaussianDemo('input/pyr_bit.jpg')
+    pyrLaplacianDemo('input/pyr_bit.jpg')
+    blendDemo()
 
 
 if __name__ == '__main__':
