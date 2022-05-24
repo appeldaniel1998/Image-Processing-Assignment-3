@@ -147,7 +147,6 @@ def presentTranslation(st, et, img1, img2, ret):
     print("Time: {:.4f}".format(et - st))
     print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
     print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
-    print("The U and V used in the original transformation were -2, -1.")
     print("The final U and V (according to the algorithm) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
     f, ax = plt.subplots(1, 3)
     ax[0].imshow(img1)
@@ -169,26 +168,61 @@ def imageWarpingDemo(img_path):
     print("Image Translation Demo")
     img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
     img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
-    t = np.array([[1, 0, -2],
-                  [0, 1, -1],
+    t = np.array([[1, 0, -4],
+                  [0, 1, -2],
                   [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+
+    cv2.imwrite('imTransA1.jpg', cv2.cvtColor(img1.astype(np.uint8), cv2.COLOR_RGB2BGR))
+    cv2.imwrite('imTransB1.jpg', cv2.cvtColor(img2.astype(np.uint8), cv2.COLOR_RGB2BGR))
 
     st = time.time()
     ret = findTranslationLK(img1.astype(float), img2.astype(float))
     et = time.time()
+    print("The U and V used in the original transformation were -4, -2.")
+    presentTranslation(st, et, img1, img2, ret)
+
+    img1 = cv2.cvtColor(cv2.imread("input/door1.jpeg"), cv2.COLOR_BGR2GRAY)
+    img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
+    t = np.array([[1, 0, 4],
+                  [0, 1, -2],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    cv2.imwrite('imTransA2.jpg', cv2.cvtColor(img1.astype(np.uint8), cv2.COLOR_RGB2BGR))
+    cv2.imwrite('imTransB2.jpg', cv2.cvtColor(img2.astype(np.uint8), cv2.COLOR_RGB2BGR))
+
+    ret = findTranslationLK(img1.astype(float), img2.astype(float))
+    print("The U and V used in the original transformation were 4, -2.")
     presentTranslation(st, et, img1, img2, ret)
 
     print("Rigid Transformation (Angles)")
+    img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
+    img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
     t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 0],
                   [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 0],
                   [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    cv2.imwrite('imRigidA1.jpg', cv2.cvtColor(img1.astype(np.uint8), cv2.COLOR_RGB2BGR))
+    cv2.imwrite('imRigidB1.jpg', cv2.cvtColor(img2.astype(np.uint8), cv2.COLOR_RGB2BGR))
+
     st = time.time()
     ret = findRigidLK(img1.astype(float), img2.astype(float))
     et = time.time()
     print("Time: {:.4f}".format(et - st))
     print("The angle used in the original transformation was 5.")
+    print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
+
+    img1 = cv2.cvtColor(cv2.imread("input/door1.jpeg"), cv2.COLOR_BGR2GRAY)
+    img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
+    t = np.array([[np.cos(np.deg2rad(10)), -np.sin(np.deg2rad(10)), 0],
+                  [np.sin(np.deg2rad(10)), np.cos(np.deg2rad(10)), 0],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    cv2.imwrite('imRigidA2.jpg', cv2.cvtColor(img1.astype(np.uint8), cv2.COLOR_RGB2BGR))
+    cv2.imwrite('imRigidB2.jpg', cv2.cvtColor(img2.astype(np.uint8), cv2.COLOR_RGB2BGR))
+    ret = findRigidLK(img1.astype(float), img2.astype(float))
+    print("Time: {:.4f}".format(et - st))
+    print("The angle used in the original transformation was 10.")
     print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
 
     print("Translation: Correlation")
@@ -202,7 +236,7 @@ def imageWarpingDemo(img_path):
     ret = findRigidCorr(img1.astype(float), img2.astype(float))
     et = time.time()
     print("Time: {:.4f}".format(et - st))
-    print("The angle used in the original transformation was 5.")
+    print("The angle used in the original transformation was 10.")
     print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
 
     print("Image Warping Demo")
@@ -299,15 +333,15 @@ def main():
     print("ID:", myID())
 
     img_path = 'input/boxMan.jpg'
-    lkDemo(img_path)
-    hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
-    compareLK(img_path)
+    # lkDemo(img_path)
+    # hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
+    # compareLK(img_path)
 
     imageWarpingDemo(img_path)
 
-    pyrGaussianDemo('input/pyr_bit.jpg')
-    pyrLaplacianDemo('input/pyr_bit.jpg')
-    blendDemo()
+    # pyrGaussianDemo('input/pyr_bit.jpg')
+    # pyrLaplacianDemo('input/pyr_bit.jpg')
+    # blendDemo()
 
 
 if __name__ == '__main__':

@@ -318,7 +318,8 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
             coordinates = np.matmul(inverseT, np.array([[x], [y], [1]]))  # Find ne coordinates
             coordinates = np.round(coordinates)  # Round coordinates to nearest pixel
             try:  # try to add the pixel in the correct place (if indexes don't exist, do nothing)
-                newIm1[int(coordinates[0][0])][int(coordinates[1][0])] = im2[x][y]
+                if int(coordinates[0][0]) >= 0 and int(coordinates[1][0]) >= 0:
+                    newIm1[int(coordinates[0][0])][int(coordinates[1][0])] = im2[x][y]
             except Exception:
                 pass
 
@@ -390,7 +391,7 @@ def pseudoConvolve(img: np.ndarray, paddedImg: np.ndarray) -> np.ndarray:
     for i in range(0, paddedImg.shape[0], 2):
         row = [paddedImg[i][0]]
         for j in range(1, paddedImg.shape[1] - 1):
-            newVal = 0.5 * (paddedImg[i][j - 1] + (2 * paddedImg[i][j]) + paddedImg[i][j + 1])  # ccalc new value
+            newVal = 0.5 * (paddedImg[i][j - 1] + (2 * paddedImg[i][j]) + paddedImg[i][j + 1])  # calc new value
             row.append(newVal)  # add value to row
         row.append(paddedImg[i][-1])
         expandedImg[i] = row  # add row to 2d list
@@ -403,11 +404,11 @@ def pseudoConvolve(img: np.ndarray, paddedImg: np.ndarray) -> np.ndarray:
     for i in range(paddedImg.shape[1]):
         col = [paddedImg[0][i]]
         for j in range(1, paddedImg.shape[0] - 1):
-            newVal = 0.5 * (paddedImg[j - 1][i] + (2 * paddedImg[j][i]) + paddedImg[j + 1][i])
-            col.append(newVal)
-        col.append(paddedImg[-1][i])
+            newVal = 0.5 * (paddedImg[j - 1][i] + (2 * paddedImg[j][i]) + paddedImg[j + 1][i])  # calc new value
+            col.append(newVal)  # add value to col
+        col.append(paddedImg[-1][i])  # add col to 2d list
         expandedImg[i] = col
-    expandedImg = expandedImg.transpose()
+    expandedImg = expandedImg.transpose()  # transpose (convert rows to cols and vice versa)
 
     expandedImg = np.array(expandedImg)
     expandedImg[-1] = expandedImg[-2]
@@ -416,21 +417,21 @@ def pseudoConvolve(img: np.ndarray, paddedImg: np.ndarray) -> np.ndarray:
 
 
 def gaussianExpand(img: np.ndarray) -> np.ndarray:
-    if img.ndim == 2:
+    if img.ndim == 2:  # BW Image
         paddedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2))
 
         # Pad image with 0-es
-        for i in range(img.shape[0]):
+        for i in range(img.shape[0]):  # fill with appropriate values where needed
             row = []
             for j in range(img.shape[1]):
                 row.append(img[i][j])
                 row.append(0)
             paddedImg[i * 2] = row
         expandedImg = pseudoConvolve(img, paddedImg)
-    else:
+    else:  # RGB Image
         # Pad image with 0-es
         expandedImg = np.zeros((img.shape[0] * 2, img.shape[1] * 2, 3))
-        for dim in range(3):
+        for dim in range(3):  # fill with appropriate values where needed
             for i in range(img.shape[0]):
                 for j in range(img.shape[1]):
                     expandedImg[i * 2][j * 2][dim] = img[i][j][dim]
@@ -447,7 +448,7 @@ def gaussianPyr(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:
     :return: Gaussian pyramid (list of images)
     """
     ret = [img]
-    for i in range(1, levels):
+    for i in range(1, levels):  # reduce image k times and add all images to list
         ret.append(gaussianReduce(ret[-1]))
     return ret
 
@@ -462,14 +463,14 @@ def laplaceianReduce(img: np.ndarray, levels: int = 4) -> List[np.ndarray]:
     gaussianPyramid = gaussianPyr(img, levels)
     ret = [gaussianPyramid[-1]]
     for i in range(2, levels + 1):
-        currExpand = gaussianExpand(gaussianPyramid[-i + 1])
+        currExpand = gaussianExpand(gaussianPyramid[-i + 1])  # expand image
         try:
-            laplacianImage = gaussianPyramid[-i] - currExpand
+            laplacianImage = gaussianPyramid[-i] - currExpand  # Use the laplacian property to calculate it
         except Exception:
             temp = gaussianPyramid[-i].copy()
             gaussianPyramid[-i] = gaussianPyramid[-i][:-(temp.shape[0] - currExpand.shape[0]), :-(temp.shape[1] - currExpand.shape[1]), :]
             laplacianImage = gaussianPyramid[-i] - currExpand
-        ret.append(laplacianImage)
+        ret.append(laplacianImage)  # add to list
     ret.reverse()
     return ret
 
@@ -482,10 +483,10 @@ def laplaceianExpand(lap_pyr: List[np.ndarray]) -> np.ndarray:
     """
     img = lap_pyr[-1]
     for i in range(2, len(lap_pyr) + 1):
-        gaussianExpanded = gaussianExpand(img)
+        gaussianExpanded = gaussianExpand(img)  # expand image
         try:
-            img = gaussianExpanded + lap_pyr[-i]
-        except Exception:
+            img = gaussianExpanded + lap_pyr[-i]  # Remake the image
+        except Exception:  # if gaussian image is bigger that expected
             gaussianExpanded = gaussianExpanded[:-1, :-1, :]
             img = gaussianExpanded + lap_pyr[-i]
 
@@ -505,7 +506,7 @@ def pyrBlend(img_1: np.ndarray, img_2: np.ndarray, mask: np.ndarray, levels: int
     laplacianImg1 = laplaceianReduce(img_1, levels)
     laplacianImg2 = laplaceianReduce(img_2, levels)
     maskGaussianPyr = gaussianPyr(mask, levels)
-    for i in range(len(maskGaussianPyr)):
+    for i in range(len(maskGaussianPyr)):  # For every level in the pyramid
         temp = maskGaussianPyr[i].copy()
         tempLap1 = laplacianImg1[i]
         if temp.shape[0] - tempLap1.shape[0] != 0:
@@ -515,14 +516,14 @@ def pyrBlend(img_1: np.ndarray, img_2: np.ndarray, mask: np.ndarray, levels: int
         maskGaussianPyr[i] = temp
 
     ls = []
-    for la, lb, maskPyrInd in zip(laplacianImg1, laplacianImg2, maskGaussianPyr):
+    for la, lb, maskPyrInd in zip(laplacianImg1, laplacianImg2, maskGaussianPyr):  # blend the images at every level
         ls.append((la * maskPyrInd) + (lb * (1 - maskPyrInd)))
 
     expanded = laplaceianExpand(ls)
 
     # True blend complete
 
-    # Naive blend:
+    # Naive blend: Wherever the mask is 1, insert the second picture. In all other places the first image.
     naiveBlend = np.zeros(expanded.shape)
     if img_1.ndim == 3:
         for i in range(expanded.shape[0]):  # For every pixel in the image
