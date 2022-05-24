@@ -154,30 +154,99 @@ def findTranslationLK(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
                      [0, 0, 1]], dtype=float)
 
 
+def optimalAngle(im1: np.ndarray, im2: np.ndarray):
+    minT = 0
+    t = []
+    minMSE = sys.maxsize
+    for theta in range(360):
+        t = np.array([[np.cos(np.deg2rad(theta)), -np.sin(np.deg2rad(theta)), 0],
+                      [np.sin(np.deg2rad(theta)), np.cos(np.deg2rad(theta)), 0],
+                      [0, 0, 1]], dtype=float)
+        tempImg2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
+        currMSE = mean_squared_error(im2, tempImg2)
+        if currMSE < minMSE:
+            minMSE = currMSE
+            minT = theta
+    im2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
+    return minT, im2
+
+
 def findRigidLK(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     """
     :param im1: input image 1 in grayscale format.
     :param im2: image 1 after Rigid.
     :return: Rigid matrix by LK.
     """
-
-    minMSE = sys.maxsize
-    minUVT = []
+    minT, im2 = optimalAngle(im1, im2)
     points, diff = opticalFlow(im1, im2, 10, 5)
-    for theta in range(360):
-        for pointId in range(len(points)):
-            t = np.array([[np.cos(theta), -np.sin(theta), 0],
-                          [np.sin(theta), np.cos(theta), 0],
-                          [0, 0, 1]], dtype=float)
-            tempImg2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
-            currMSE = mean_squared_error(im2, tempImg2)
-            if currMSE < minMSE:
-                minMSE = currMSE
-                minUVT = diff[pointId][0], diff[pointId][1], theta
-
-    return np.array([[np.cos(minUVT[2]), -np.sin(minUVT[2]), minUVT[0]],
-                     [np.sin(minUVT[2]), np.cos(minUVT[2]), minUVT[1]],
+    minMSE = sys.maxsize
+    minUV = []
+    for pointId in range(len(points)):
+        t = np.array([[np.cos(np.deg2rad(minT)), -np.sin(np.deg2rad(minT)), diff[pointId][0]],
+                      [np.sin(np.deg2rad(minT)), np.cos(np.deg2rad(minT)), diff[pointId][1]],
+                      [0, 0, 1]], dtype=float)
+        tempImg2 = cv2.warpPerspective(im1, t, im1.shape[::-1])
+        currMSE = mean_squared_error(im2, tempImg2)
+        if currMSE < minMSE:
+            minMSE = currMSE
+            minUV = diff[pointId]
+    return np.array([[np.cos(np.deg2rad(minT)), -np.sin(np.deg2rad(minT)), minUV[0]],
+                     [np.sin(np.deg2rad(minT)), np.cos(np.deg2rad(minT)), minUV[1]],
                      [0, 0, 1]], dtype=float)
+
+
+def findIndents(im2: np.ndarray):
+    # top Indent
+    i = 0
+    flag = False
+    while not flag:
+        if np.all((im2[i] == 0)):
+            i += 1
+        else:
+            flag = True
+    topIndent = i
+
+    # Bottom Indent
+    i = 1
+    flag = False
+    while not flag:
+        if np.all((im2[-i] == 0)):
+            i += 1
+        else:
+            flag = True
+    bottomIndent = -i + 1
+
+    # Left Indent
+    i = 0
+    flag = False
+    while not flag:
+        if np.all((im2[:, i] == 0)):
+            i += 1
+        else:
+            flag = True
+    leftIndent = -i
+
+    # Right Indent
+    i = 1
+    flag = False
+    while not flag:
+        if np.all((im2[:, -i] == 0)):
+            i += 1
+        else:
+            flag = True
+    rightIndent = -i + 1
+
+    if topIndent != 0:
+        topBotIndent = topIndent
+    else:
+        topBotIndent = bottomIndent
+
+    if leftIndent != 0:
+        leftRightIndent = leftIndent
+    else:
+        leftRightIndent = rightIndent
+
+    return topBotIndent, leftRightIndent
 
 
 def findTranslationCorr(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
@@ -186,7 +255,12 @@ def findTranslationCorr(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     :param im2: image 1 after Translation.
     :return: Translation matrix by correlation.
     """
-    pass
+
+    topBotIndent, leftRightIndent = findIndents(im2)
+    t = np.array([[1, 0, leftRightIndent],
+                  [0, 1, topBotIndent],
+                  [0, 0, 1]], dtype=float)
+    return t
 
 
 def findRigidCorr(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
@@ -195,7 +269,16 @@ def findRigidCorr(im1: np.ndarray, im2: np.ndarray) -> np.ndarray:
     :param im2: image 1 after Rigid.
     :return: Rigid matrix by correlation.
     """
-    pass
+
+    minT, im2 = optimalAngle(im1, im2)
+    t = findTranslationCorr(im1, im2)
+
+    t[0][0] = np.cos(np.deg2rad(minT))
+    t[0][1] = -np.sin(np.deg2rad(minT))
+    t[1][0] = np.sin(np.deg2rad(minT))
+    t[1][1] = np.cos(np.deg2rad(minT))
+
+    return t
 
 
 def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
@@ -210,6 +293,13 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
     newIm1 = np.zeros(im2.shape)
     changeMat = np.zeros(im2.shape)
     inverseT = np.linalg.inv(T)
+    if inverseT[0][1] != 0:
+        deg = np.rad2deg(np.arcsin(inverseT[1][0]))
+        rad = np.deg2rad(-deg)
+        inverseT[0][0] = np.cos(rad)
+        inverseT[1][1] = np.cos(rad)
+        inverseT[0][1] = -np.sin(rad)
+        inverseT[1][0] = np.sin(rad)
     for x in range(im2.shape[0]):
         for y in range(im2.shape[1]):
             coordinates = np.matmul(inverseT, np.array([[x], [y], [1]]))
@@ -222,9 +312,14 @@ def warpImages(im1: np.ndarray, im2: np.ndarray, T: np.ndarray) -> np.ndarray:
 
     f, ax = plt.subplots(1, 3)
     ax[0].imshow(im1)
+    ax[0].set_title("Image 1")
     ax[1].imshow(newIm1)
+    ax[1].set_title("Supposed Image 1")
     ax[2].imshow(im2)
+    ax[2].set_title("Image 2")
     plt.show()
+
+    return newIm1
 
 
 # ---------------------------------------------------------------------------

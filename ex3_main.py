@@ -94,41 +94,87 @@ def displayOpticalFlow(img: np.ndarray, pts: np.ndarray, uvs: np.ndarray):
 # ------------------------ Image Alignment & Warping ------------------------
 # ---------------------------------------------------------------------------
 
+def presentTranslation(st, et, img1, img2, ret):
+    print("Time: {:.4f}".format(et - st))
+    print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
+    print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
+    print("The U and V used in the original transformation were -2, -1.")
+    print("The final U and V (according to the algorithm) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
+    f, ax = plt.subplots(1, 3)
+    ax[0].imshow(img1)
+    ax[0].set_title("Image 1")
+    ax[2].imshow(img2)
+    ax[2].set_title("Image 2")
+    ax[1].imshow(cv2.warpPerspective(img1, ret, img1.shape[::-1]))
+    ax[1].set_title("Translated image")
+    plt.show()
 
-def     imageWarpingDemo(img_path):
+
+def imageWarpingDemo(img_path):
     """
     ADD TEST
     :param img_path: Image input
     :return:
     """
 
-    print("Image Translation Demo")
+    # # print("Image Translation Demo")
     img1 = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2GRAY)
     img1 = cv2.resize(img1, (0, 0), fx=.5, fy=0.5)
-    # t = np.array([[1, 0, -2],
-    #               [0, 1, -1],
-    #               [0, 0, 1]], dtype=float)
-    # img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
-
+    t = np.array([[1, 0, -2],
+                  [0, 1, -1],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    #
     # st = time.time()
     # ret = findTranslationLK(img1.astype(float), img2.astype(float))
     # et = time.time()
-    #
+    # presentTranslation(st, et, img1, img2, ret)
+
+    # print("Rigid Transformation (Angles)")
+    t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 0],
+                  [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 0],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    # st = time.time()
+    # ret = findRigidLK(img1.astype(float), img2.astype(float))
+    # et = time.time()
     # print("Time: {:.4f}".format(et - st))
-    # print("MSE of the 2 images is: " + str(mean_squared_error(img2, img1)))
-    # print("MSE of the second image to the returned image: " + str(mean_squared_error(img2, cv2.warpPerspective(img1, ret, img1.shape[::-1]))))
-    # print("The final U and V (accordingly) were: " + str(ret[0][2]) + ", " + str(ret[1][2]) + "\n\n")
+    # print("The angle used in the original transformation was 5.")
+    # print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
+
+    # print("Translation: Correlation")
+    # st = time.time()
+    # ret = findTranslationCorr(img1.astype(float), img2.astype(float))
+    # et = time.time()
+    # presentTranslation(st, et, img1, img2, ret)
+
+    print("Rigid: Correlation")
+    st = time.time()
+    ret = findRigidCorr(img1.astype(float), img2.astype(float))
+    et = time.time()
+    print("Time: {:.4f}".format(et - st))
+    print("The angle used in the original transformation was 5.")
+    print("The final angle (according to the algorithm) was: " + str(np.rad2deg(np.arccos(ret[0][0]))) + "\n\n")
 
 
     print("Image Warping Demo")
-    t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 2],
-                  [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 1],
-                  [0, 0, 1]], dtype=float)
     img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
     st = time.time()
-    ret = warpImages(img1.astype(float), img2.astype(float), t)
+    warpImages(img1.astype(float), img2.astype(float), t)
     et = time.time()
+    print("Time: {:.4f}".format(et - st))
 
+    t = np.array([[np.cos(np.deg2rad(5)), -np.sin(np.deg2rad(5)), 10],
+                  [np.sin(np.deg2rad(5)), np.cos(np.deg2rad(5)), 10],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    warpImages(img1.astype(float), img2.astype(float), t)
+
+    t = np.array([[np.cos(np.deg2rad(10)), -np.sin(np.deg2rad(10)), 0],
+                  [np.sin(np.deg2rad(10)), np.cos(np.deg2rad(10)), -10],
+                  [0, 0, 1]], dtype=float)
+    img2 = cv2.warpPerspective(img1, t, img1.shape[::-1])
+    warpImages(img1.astype(float), img2.astype(float), t)
 
 
 # ---------------------------------------------------------------------------
@@ -205,11 +251,11 @@ def main():
     print("ID:", myID())
 
     img_path = 'input/boxMan.jpg'
-    # lkDemo(img_path)
+    lkDemo(img_path)
     # hierarchicalkDemo("input/door1.jpeg", "input/door2.jpeg")
     # compareLK(img_path)
     #
-    imageWarpingDemo(img_path)
+    # imageWarpingDemo(img_path)
     #
     # pyrGaussianDemo('input/pyr_bit.jpg')
     # pyrLaplacianDemo('input/pyr_bit.jpg')
